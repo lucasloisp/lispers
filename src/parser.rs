@@ -93,6 +93,12 @@ mod tests {
     }
 
     #[test]
+    fn no_space_after_number_sign() {
+        assert!(parse_number(Input("- 45")).is_err());
+        assert!(parse_number(Input("- 45 ")).is_err());
+    }
+
+    #[test]
     fn parsed_expression_recognizes_operator() {
         let op = Operator::Add;
         let expr = vec![Expression::Number(2), Expression::Number(4)];
