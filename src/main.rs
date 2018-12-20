@@ -20,7 +20,7 @@ fn main() {
 
         println!(
             "{:?}",
-            parser::parse_program(nom::types::CompleteStr(&input))
+            parser::parse_main(nom::types::CompleteStr(&input))
         );
     }
 }

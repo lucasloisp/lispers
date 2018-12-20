@@ -1,5 +1,5 @@
-use nom::digit;
 use nom::types::CompleteStr as Input;
+use nom::{digit, multispace, space};
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -24,7 +24,7 @@ enum Expression {
 
 fn sym_to_operator(sym: &str) -> Option<Operator> {
     match sym {
-        "+" => Some(Operator::Add),
+        "+"|"add" => Some(Operator::Add),
         "-" => Some(Operator::Subtract),
         "*" => Some(Operator::Multiply),
         "/" => Some(Operator::Divide),
@@ -44,11 +44,15 @@ named!(parse_expression<Input, Expression>, alt!(
         parse_number | delimited!(char!('('), map!(parse_program, Expression::Program), char!(')'))
         ));
 
-named!(pub parse_program<Input, Program>, ws!(do_parse!(
+named!(pub parse_program<Input, Program>, do_parse!(
         op: parse_operator >>
-        expr: many1!(parse_expression) >>
+        space >>
+        expr: separated_list!(multispace, parse_expression) >>
+        opt!(space) >>
         (Program { op, expr })
-)));
+));
+
+named!(pub parse_main<Input, Program>, terminated!(delimited!(opt!(char!('(')), parse_program, opt!(char!(')'))), nom::eol));
 
 #[cfg(test)]
 mod tests {
