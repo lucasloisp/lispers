@@ -10,7 +10,6 @@ fn main() {
     println!("Lispers Version 0.0.0.0.1");
     println!("Press Ctrl+c to Exit");
 
-
     loop {
         let mut input = String::new();
 
@@ -19,7 +18,9 @@ fn main() {
 
         io::stdin().read_line(&mut input);
 
-        println!("{:?}", parser::parse_program(nom::types::CompleteStr(&input)));
-        
+        println!(
+            "{:?}",
+            parser::parse_program(nom::types::CompleteStr(&input))
+        );
     }
 }
