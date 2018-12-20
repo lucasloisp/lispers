@@ -32,7 +32,11 @@ fn sym_to_operator(sym: &str) -> Option<Operator> {
 named!(parse_operator<Input, Operator>, map_opt!(take!(1), |s:Input| sym_to_operator(s.0)));
 
 
-named!(parse_number<Input, Expression>, map!(map_res!(digit, |s:Input| { FromStr::from_str(s.0) }), Expression::Number));
+named!(parse_number<Input, Expression>, map!(map_res!(
+            pair!(opt!(char!('-')), digit)
+            , |(m, s): (Option<char>, Input)| {
+                i32::from_str(s.0).map(|n| n * m.map(|_| -1).unwrap_or(1i32))
+            }), Expression::Number));
 
 named!(parse_expression<Input, Expression>, alt!(
         parse_number | delimited!(char!('('), map!(parse_program, Expression::Program), char!(')'))
@@ -63,6 +67,24 @@ mod tests {
     fn parsed_number_is_correct() {
         assert_eq!(Ok((Input(""), Expression::Number(45))), parse_number(Input("45")));
         assert_eq!(Ok((Input(" "), Expression::Number(45))), parse_number(Input("45 ")));
+
+        assert_eq!(Ok((Input(""), Expression::Number(-45))), parse_number(Input("-45")));
+        assert_eq!(Ok((Input(" "), Expression::Number(-45))), parse_number(Input("-45 ")));
+    }
+
+    #[test]
+    fn parsed_expression_recognizes_operator() {
+        let op = Operator::Add;
+        let expr = vec! [Expression::Number(2), Expression::Number(4)];
+        assert_eq!(Ok((Input(""), Expression::Program(Program { op, expr }))), parse_expression(Input("(+ 2 4)")));
+
+        let op = Operator::Multiply;
+        let expr = vec! [Expression::Number(2), Expression::Number(4), Expression::Number(5), Expression::Number(6)];
+        assert_eq!(Ok((Input(""), Expression::Program(Program { op, expr }))), parse_expression(Input("(* 2 4 5 6)")));
+
+        let op = Operator::Subtract;
+        let expr = vec! [Expression::Number(2), Expression::Number(-4)];
+        assert_eq!(Ok((Input(""), Expression::Program(Program { op, expr }))), parse_expression(Input("(- 2 -4)")));
     }
 
 }
