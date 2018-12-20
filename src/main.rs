@@ -19,7 +19,7 @@ fn main() {
 
         io::stdin().read_line(&mut input);
 
-        print!("I can't do {}", input);
+        println!("{:?}", parser::parse_program(&input));
         
     }
 }
