@@ -1,4 +1,5 @@
 use nom::digit;
+use nom::types::CompleteStr as Input;
 use std::str::FromStr;
 
 #[derive(Debug,PartialEq)]
@@ -28,18 +29,18 @@ fn sym_to_operator(sym: &str) -> Option<Operator> {
     }
 }
 
-named!(parse_operator<&str, Operator>, map_opt!(take!(1), sym_to_operator));
+named!(parse_operator<Input, Operator>, map_opt!(take!(1), |s:Input| sym_to_operator(s.0)));
 
 
-named!(parse_number<&str, Expression>, map!(map_res!(digit, FromStr::from_str), Expression::Number));
+named!(parse_number<Input, Expression>, map!(map_res!(digit, |s:Input| { FromStr::from_str(s.0) }), Expression::Number));
 
-named!(parse_expression<&str, Expression>, alt!(
+named!(parse_expression<Input, Expression>, alt!(
         parse_number | delimited!(char!('('), map!(parse_program, Expression::Program), char!(')'))
         ));
  
 
 
-named!(pub parse_program<&str, Program>, ws!(do_parse!(
+named!(pub parse_program<Input, Program>, ws!(do_parse!(
         op: parse_operator >>
         expr: many1!(parse_expression) >>
         (Program { op, expr })
@@ -52,16 +53,16 @@ mod tests {
 
     #[test]
     fn parsed_operator_coincides_with_symbol() {
-        assert_eq!(Ok(("", Operator::Add)), parse_operator("+"));
-        assert_eq!(Ok(("", Operator::Subtract)), parse_operator("-"));
-        assert_eq!(Ok(("", Operator::Multiply)), parse_operator("*"));
-        assert_eq!(Ok(("", Operator::Divide)), parse_operator("/"));
+        assert_eq!(Ok((Input(""), Operator::Add)), parse_operator(Input("+")));
+        assert_eq!(Ok((Input(""), Operator::Subtract)), parse_operator(Input("-")));
+        assert_eq!(Ok((Input(""), Operator::Multiply)), parse_operator(Input("*")));
+        assert_eq!(Ok((Input(""), Operator::Divide)), parse_operator(Input("/")));
     }
 
     #[test]
     fn parsed_number_is_correct() {
-        assert_eq!(Ok(("", Expression::Number(45))), parse_number("45"));
-        assert_eq!(Ok((" ", Expression::Number(45))), parse_number("45 "));
+        assert_eq!(Ok((Input(""), Expression::Number(45))), parse_number(Input("45")));
+        assert_eq!(Ok((Input(" "), Expression::Number(45))), parse_number(Input("45 ")));
     }
 
 }

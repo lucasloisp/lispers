@@ -19,7 +19,7 @@ fn main() {
 
         io::stdin().read_line(&mut input);
 
-        println!("{:?}", parser::parse_program(&input));
+        println!("{:?}", parser::parse_program(nom::types::CompleteStr(&input)));
         
     }
 }
