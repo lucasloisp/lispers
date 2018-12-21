@@ -16,6 +16,8 @@ enum Operator {
     Divide,
     Modulus,
     Pow,
+    Min,
+    Max,
 }
 
 #[derive(Debug, PartialEq)]
@@ -48,6 +50,8 @@ impl Operator {
                     0
                 }
             }
+            Operator::Max => std::cmp::max(a, b),
+            Operator::Min => std::cmp::min(a, b),
         }
     }
 }
@@ -69,6 +73,8 @@ fn sym_to_operator(sym: &str) -> Option<Operator> {
         "/" | "div" => Some(Operator::Divide),
         "%" | "mod" => Some(Operator::Modulus),
         "^" | "pow" => Some(Operator::Pow),
+        "max" => Some(Operator::Max),
+        "min" => Some(Operator::Min),
         _ => None,
     }
 }
@@ -141,6 +147,8 @@ mod tests {
             parse_operator(Input("mod"))
         );
         assert_eq!(Ok((Input(""), Operator::Pow)), parse_operator(Input("pow")));
+        assert_eq!(Ok((Input(""), Operator::Min)), parse_operator(Input("min")));
+        assert_eq!(Ok((Input(""), Operator::Max)), parse_operator(Input("max")));
     }
 
     #[test]
@@ -196,6 +204,34 @@ mod tests {
         assert_eq!(
             Ok((Input(""), Expression::Program(Program { op, expr }))),
             parse_expression(Input("(- 2 -4)"))
+        );
+    }
+
+    #[test]
+    fn min_max_evaluates_correclty() {
+        assert_eq!(
+            1,
+            Program {
+                op: Operator::Min,
+                expr: vec![
+                    Expression::Number(1),
+                    Expression::Number(5),
+                    Expression::Number(3)
+                ]
+            }
+            .eval()
+        );
+        assert_eq!(
+            5,
+            Program {
+                op: Operator::Max,
+                expr: vec![
+                    Expression::Number(1),
+                    Expression::Number(5),
+                    Expression::Number(3)
+                ]
+            }
+            .eval()
         );
     }
 
