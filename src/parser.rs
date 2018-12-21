@@ -24,7 +24,21 @@ enum Expression {
 
 impl Program {
     fn eval(&self) -> i32 {
-        42
+        self.expr.iter().skip(2).map(Expression::eval).fold(
+            self.op.apply(self.expr[0].eval(), self.expr[1].eval()),
+            |a, e| self.op.apply(a, e),
+        )
+    }
+}
+
+impl Operator {
+    fn apply(&self, a: i32, b: i32) -> i32 {
+        match self {
+            Operator::Add => a + b,
+            Operator::Subtract => a - b,
+            Operator::Multiply => a * b,
+            Operator::Divide => a / b,
+        }
     }
 }
 
@@ -161,6 +175,56 @@ mod tests {
             Ok((Input(""), Expression::Program(Program { op, expr }))),
             parse_expression(Input("(- 2 -4)"))
         );
+    }
+
+    #[test]
+    fn expressions_evaluate_correctly() {
+        let pr = Program {
+            op: Operator::Add,
+            expr: vec![Expression::Number(5), Expression::Number(6)],
+        };
+        assert_eq!(11, pr.eval());
+
+        let pr1 = Program {
+            op: Operator::Multiply,
+            expr: vec![Expression::Number(10), Expression::Number(10)],
+        };
+        assert_eq!(100, pr1.eval());
+
+        let pr2 = Program {
+            op: Operator::Add,
+            expr: vec![
+                Expression::Number(1),
+                Expression::Number(1),
+                Expression::Number(1),
+            ],
+        };
+        assert_eq!(3, pr2.eval());
+
+        let pr3 = Program {
+            op: Operator::Subtract,
+            expr: vec![
+                Expression::Number(50),
+                Expression::Number(101),
+            ],
+        };
+        assert_eq!(-51, pr3.eval());
+
+
+        let pr4 = Program {
+            op: Operator::Divide,
+            expr: vec![
+                Expression::Number(150),
+                Expression::Number(50),
+            ]
+        };
+        assert_eq!(3, pr4.eval());
+
+        let pr = Program {
+            op: Operator::Subtract,
+            expr: vec![Expression::Program(pr1), Expression::Program(pr2)],
+        };
+        assert_eq!(97, pr.eval());
     }
 
 }
