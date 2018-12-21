@@ -15,6 +15,7 @@ enum Operator {
     Multiply,
     Divide,
     Modulus,
+    Pow,
 }
 
 #[derive(Debug, PartialEq)]
@@ -40,6 +41,13 @@ impl Operator {
             Operator::Multiply => a * b,
             Operator::Divide => a / b,
             Operator::Modulus => a % b,
+            Operator::Pow => {
+                if b >= 0 {
+                    a.pow(b as u32)
+                } else {
+                    0
+                }
+            }
         }
     }
 }
@@ -60,6 +68,7 @@ fn sym_to_operator(sym: &str) -> Option<Operator> {
         "*" | "mul" => Some(Operator::Multiply),
         "/" | "div" => Some(Operator::Divide),
         "%" | "mod" => Some(Operator::Modulus),
+        "^" | "pow" => Some(Operator::Pow),
         _ => None,
     }
 }
@@ -109,6 +118,7 @@ mod tests {
             Ok((Input(""), Operator::Modulus)),
             parse_operator(Input("%"))
         );
+        assert_eq!(Ok((Input(""), Operator::Pow)), parse_operator(Input("^")));
     }
 
     #[test]
@@ -130,6 +140,7 @@ mod tests {
             Ok((Input(""), Operator::Modulus)),
             parse_operator(Input("mod"))
         );
+        assert_eq!(Ok((Input(""), Operator::Pow)), parse_operator(Input("pow")));
     }
 
     #[test]
@@ -195,6 +206,18 @@ mod tests {
             Program {
                 op: Operator::Modulus,
                 expr: vec![Expression::Number(10), Expression::Number(6)]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn power_expression_evaluates_correctly() {
+        assert_eq!(
+            16,
+            Program {
+                op: Operator::Pow,
+                expr: vec![Expression::Number(4), Expression::Number(2)]
             }
             .eval()
         );
