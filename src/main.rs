@@ -18,9 +18,11 @@ fn main() {
 
         io::stdin().read_line(&mut input);
 
-        println!(
-            "{:?}",
-            parser::parse_main(nom::types::CompleteStr(&input))
-        );
+       println!(
+           "{}",
+            match parser::parse_main(nom::types::CompleteStr(&input)) {
+            Ok((_, pr)) => format!("{}", pr.eval()),
+            Err(e) => format!("{:?}", e)
+        })
     }
 }

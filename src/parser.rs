@@ -14,6 +14,7 @@ enum Operator {
     Subtract,
     Multiply,
     Divide,
+    Modulus,
 }
 
 #[derive(Debug, PartialEq)]
@@ -23,7 +24,7 @@ enum Expression {
 }
 
 impl Program {
-    fn eval(&self) -> i32 {
+    pub fn eval(&self) -> i32 {
         self.expr.iter().skip(2).map(Expression::eval).fold(
             self.op.apply(self.expr[0].eval(), self.expr[1].eval()),
             |a, e| self.op.apply(a, e),
@@ -38,6 +39,7 @@ impl Operator {
             Operator::Subtract => a - b,
             Operator::Multiply => a * b,
             Operator::Divide => a / b,
+            Operator::Modulus => a % b,
         }
     }
 }
@@ -57,6 +59,7 @@ fn sym_to_operator(sym: &str) -> Option<Operator> {
         "-" | "sub" => Some(Operator::Subtract),
         "*" | "mul" => Some(Operator::Multiply),
         "/" | "div" => Some(Operator::Divide),
+        "%" | "mod" => Some(Operator::Modulus),
         _ => None,
     }
 }
@@ -102,6 +105,10 @@ mod tests {
             Ok((Input(""), Operator::Divide)),
             parse_operator(Input("/"))
         );
+        assert_eq!(
+            Ok((Input(""), Operator::Modulus)),
+            parse_operator(Input("%"))
+        );
     }
 
     #[test]
@@ -118,6 +125,10 @@ mod tests {
         assert_eq!(
             Ok((Input(""), Operator::Divide)),
             parse_operator(Input("div"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Modulus)),
+            parse_operator(Input("mod"))
         );
     }
 
@@ -178,6 +189,18 @@ mod tests {
     }
 
     #[test]
+    fn modulus_expression_evaluates_correctly() {
+        assert_eq!(
+            4,
+            Program {
+                op: Operator::Modulus,
+                expr: vec![Expression::Number(10), Expression::Number(6)]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
     fn expressions_evaluate_correctly() {
         let pr = Program {
             op: Operator::Add,
@@ -203,20 +226,13 @@ mod tests {
 
         let pr3 = Program {
             op: Operator::Subtract,
-            expr: vec![
-                Expression::Number(50),
-                Expression::Number(101),
-            ],
+            expr: vec![Expression::Number(50), Expression::Number(101)],
         };
         assert_eq!(-51, pr3.eval());
 
-
         let pr4 = Program {
             op: Operator::Divide,
-            expr: vec![
-                Expression::Number(150),
-                Expression::Number(50),
-            ]
+            expr: vec![Expression::Number(150), Expression::Number(50)],
         };
         assert_eq!(3, pr4.eval());
 
