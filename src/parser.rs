@@ -3,8 +3,7 @@ use nom::{digit, multispace, space};
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
-pub struct Program {
-    op: Operator,
+pub struct SExpr {
     expr: Vec<Expression>,
 }
 
@@ -23,15 +22,22 @@ enum Operator {
 #[derive(Debug, PartialEq)]
 enum Expression {
     Number(i32),
-    Program(Program),
+    Op(Operator),
+    S(SExpr),
 }
 
-impl Program {
+impl SExpr {
     pub fn eval(&self) -> i32 {
-        self.expr.iter().skip(2).map(Expression::eval).fold(
-            self.op.apply(self.expr[0].eval(), self.expr[1].eval()),
-            |a, e| self.op.apply(a, e),
-        )
+        if let Expression::Op(ref op) = self.expr[0] {
+            self.expr.iter().skip(3).map(Expression::eval).fold(
+                op.apply(self.expr[1].eval(), self.expr[2].eval()),
+                |a, e| op.apply(a, e),
+            )
+        } else {
+            println!("Damn");
+            println!("{:?}", self);
+            0
+        }
     }
 }
 
@@ -60,7 +66,8 @@ impl Expression {
     fn eval(&self) -> i32 {
         match self {
             Expression::Number(n) => *n,
-            Expression::Program(pr) => pr.eval(),
+            Expression::S(sexpr) => sexpr.eval(),
+            _ => 0,
         }
     }
 }
@@ -88,18 +95,17 @@ named!(parse_number<Input, Expression>, map!(map_res!(
             }), Expression::Number));
 
 named!(parse_expression<Input, Expression>, alt!(
-        parse_number | delimited!(char!('('), map!(parse_program, Expression::Program), char!(')'))
+        parse_number | map!(parse_operator, Expression::Op) | map!(parse_sexpr, Expression::S)
         ));
 
-named!(pub parse_program<Input, Program>, do_parse!(
-        op: parse_operator >>
-        space >>
+named!(parse_sexpr<Input, SExpr>, do_parse!(
+        char!('(') >>
         expr: separated_list!(multispace, parse_expression) >>
-        opt!(space) >>
-        (Program { op, expr })
+        char!(')') >>
+        (SExpr { expr })
 ));
 
-named!(pub parse_main<Input, Program>, terminated!(delimited!(opt!(char!('(')), parse_program, opt!(char!(')'))), nom::eol));
+named!(pub parse_main<Input, SExpr>, terminated!(parse_sexpr, nom::eol));
 
 #[cfg(test)]
 mod tests {
@@ -181,28 +187,37 @@ mod tests {
     #[test]
     fn parsed_expression_recognizes_operator() {
         let op = Operator::Add;
-        let expr = vec![Expression::Number(2), Expression::Number(4)];
+        let expr = vec![
+            Expression::Op(op),
+            Expression::Number(2),
+            Expression::Number(4),
+        ];
         assert_eq!(
-            Ok((Input(""), Expression::Program(Program { op, expr }))),
+            Ok((Input(""), Expression::S(SExpr { expr }))),
             parse_expression(Input("(+ 2 4)"))
         );
 
         let op = Operator::Multiply;
         let expr = vec![
+            Expression::Op(op),
             Expression::Number(2),
             Expression::Number(4),
             Expression::Number(5),
             Expression::Number(6),
         ];
         assert_eq!(
-            Ok((Input(""), Expression::Program(Program { op, expr }))),
+            Ok((Input(""), Expression::S(SExpr { expr }))),
             parse_expression(Input("(* 2 4 5 6)"))
         );
 
         let op = Operator::Subtract;
-        let expr = vec![Expression::Number(2), Expression::Number(-4)];
+        let expr = vec![
+            Expression::Op(op),
+            Expression::Number(2),
+            Expression::Number(-4),
+        ];
         assert_eq!(
-            Ok((Input(""), Expression::Program(Program { op, expr }))),
+            Ok((Input(""), Expression::S(SExpr { expr }))),
             parse_expression(Input("(- 2 -4)"))
         );
     }
@@ -211,9 +226,9 @@ mod tests {
     fn min_max_evaluates_correclty() {
         assert_eq!(
             1,
-            Program {
-                op: Operator::Min,
+            SExpr {
                 expr: vec![
+                    Expression::Op(Operator::Min),
                     Expression::Number(1),
                     Expression::Number(5),
                     Expression::Number(3)
@@ -223,9 +238,9 @@ mod tests {
         );
         assert_eq!(
             5,
-            Program {
-                op: Operator::Max,
+            SExpr {
                 expr: vec![
+                    Expression::Op(Operator::Max),
                     Expression::Number(1),
                     Expression::Number(5),
                     Expression::Number(3)
@@ -239,9 +254,12 @@ mod tests {
     fn modulus_expression_evaluates_correctly() {
         assert_eq!(
             4,
-            Program {
-                op: Operator::Modulus,
-                expr: vec![Expression::Number(10), Expression::Number(6)]
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Modulus),
+                    Expression::Number(10),
+                    Expression::Number(6)
+                ]
             }
             .eval()
         );
@@ -251,9 +269,12 @@ mod tests {
     fn power_expression_evaluates_correctly() {
         assert_eq!(
             16,
-            Program {
-                op: Operator::Pow,
-                expr: vec![Expression::Number(4), Expression::Number(2)]
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Pow),
+                    Expression::Number(4),
+                    Expression::Number(2)
+                ]
             }
             .eval()
         );
@@ -261,21 +282,27 @@ mod tests {
 
     #[test]
     fn expressions_evaluate_correctly() {
-        let pr = Program {
-            op: Operator::Add,
-            expr: vec![Expression::Number(5), Expression::Number(6)],
+        let pr = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Add),
+                Expression::Number(5),
+                Expression::Number(6),
+            ],
         };
         assert_eq!(11, pr.eval());
 
-        let pr1 = Program {
-            op: Operator::Multiply,
-            expr: vec![Expression::Number(10), Expression::Number(10)],
+        let pr1 = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Multiply),
+                Expression::Number(10),
+                Expression::Number(10),
+            ],
         };
         assert_eq!(100, pr1.eval());
 
-        let pr2 = Program {
-            op: Operator::Add,
+        let pr2 = SExpr {
             expr: vec![
+                Expression::Op(Operator::Add),
                 Expression::Number(1),
                 Expression::Number(1),
                 Expression::Number(1),
@@ -283,21 +310,30 @@ mod tests {
         };
         assert_eq!(3, pr2.eval());
 
-        let pr3 = Program {
-            op: Operator::Subtract,
-            expr: vec![Expression::Number(50), Expression::Number(101)],
+        let pr3 = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Subtract),
+                Expression::Number(50),
+                Expression::Number(101),
+            ],
         };
         assert_eq!(-51, pr3.eval());
 
-        let pr4 = Program {
-            op: Operator::Divide,
-            expr: vec![Expression::Number(150), Expression::Number(50)],
+        let pr4 = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Divide),
+                Expression::Number(150),
+                Expression::Number(50),
+            ],
         };
         assert_eq!(3, pr4.eval());
 
-        let pr = Program {
-            op: Operator::Subtract,
-            expr: vec![Expression::Program(pr1), Expression::Program(pr2)],
+        let pr = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Subtract),
+                Expression::S(pr1),
+                Expression::S(pr2),
+            ],
         };
         assert_eq!(97, pr.eval());
     }
