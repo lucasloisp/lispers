@@ -22,17 +22,32 @@ enum Expression {
     Program(Program),
 }
 
+impl Program {
+    fn eval(&self) -> i32 {
+        42
+    }
+}
+
+impl Expression {
+    fn eval(&self) -> i32 {
+        match self {
+            Expression::Number(n) => *n,
+            Expression::Program(pr) => pr.eval(),
+        }
+    }
+}
+
 fn sym_to_operator(sym: &str) -> Option<Operator> {
     match sym {
-        "+"|"add" => Some(Operator::Add),
-        "-" => Some(Operator::Subtract),
-        "*" => Some(Operator::Multiply),
-        "/" => Some(Operator::Divide),
+        "+" | "add" => Some(Operator::Add),
+        "-" | "sub" => Some(Operator::Subtract),
+        "*" | "mul" => Some(Operator::Multiply),
+        "/" | "div" => Some(Operator::Divide),
         _ => None,
     }
 }
 
-named!(parse_operator<Input, Operator>, map_opt!(take!(1), |s:Input| sym_to_operator(s.0)));
+named!(parse_operator<Input, Operator>, map_opt!(take_till!(char::is_whitespace), |s:Input| sym_to_operator(s.0)));
 
 named!(parse_number<Input, Expression>, map!(map_res!(
             pair!(opt!(char!('-')), digit)
@@ -72,6 +87,23 @@ mod tests {
         assert_eq!(
             Ok((Input(""), Operator::Divide)),
             parse_operator(Input("/"))
+        );
+    }
+
+    #[test]
+    fn operator_can_be_expressed_by_name() {
+        assert_eq!(Ok((Input(""), Operator::Add)), parse_operator(Input("add")));
+        assert_eq!(
+            Ok((Input(""), Operator::Subtract)),
+            parse_operator(Input("sub"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Multiply)),
+            parse_operator(Input("mul"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Divide)),
+            parse_operator(Input("div"))
         );
     }
 
