@@ -1,9 +1,14 @@
 use nom::types::CompleteStr as Input;
-use nom::{digit, multispace, space};
+use nom::{digit, multispace};
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub struct SExpr {
+    expr: Vec<Expression>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct QExpr {
     expr: Vec<Expression>,
 }
 
@@ -24,6 +29,7 @@ enum Expression {
     Number(i32),
     Op(Operator),
     S(SExpr),
+    Q(QExpr),
 }
 
 impl SExpr {
@@ -95,8 +101,15 @@ named!(parse_number<Input, Expression>, map!(map_res!(
             }), Expression::Number));
 
 named!(parse_expression<Input, Expression>, alt!(
-        parse_number | map!(parse_operator, Expression::Op) | map!(parse_sexpr, Expression::S)
+        parse_number | map!(parse_operator, Expression::Op) | map!(parse_sexpr, Expression::S) | map!(parse_qexpr, Expression::Q)
         ));
+
+named!(parse_qexpr<Input, QExpr>, do_parse!(
+        char!('{') >>
+        expr: separated_list!(multispace, parse_expression) >>
+        char!('}') >>
+        (QExpr { expr })
+));
 
 named!(parse_sexpr<Input, SExpr>, do_parse!(
         char!('(') >>
@@ -219,6 +232,38 @@ mod tests {
         assert_eq!(
             Ok((Input(""), Expression::S(SExpr { expr }))),
             parse_expression(Input("(- 2 -4)"))
+        );
+    }
+
+    #[test]
+    fn parsed_q_expression_is_correct() {
+        assert_eq!(
+            Ok((Input(""), QExpr { expr: vec![] })),
+            parse_qexpr(Input("{}"))
+        );
+
+        assert_eq!(
+            Ok((
+                Input(""),
+                QExpr {
+                    expr: vec![Expression::Number(4), Expression::Number(1)]
+                }
+            )),
+            parse_qexpr(Input("{4 1}"))
+        );
+
+        assert_eq!(
+            Ok((
+                Input(""),
+                QExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(4),
+                        Expression::Number(1)
+                    ]
+                }
+            )),
+            parse_qexpr(Input("{+ 4 1}"))
         );
     }
 
