@@ -42,16 +42,19 @@ pub enum LError {
 type LResult = Result<Expression, LError>;
 
 impl SExpr {
-    pub fn eval(&self) -> LResult {
-        if let Expression::Op(ref op) = self.expr[0] {
-            let exp1 = self.expr[1].eval()?;
-            let exp2 = self.expr[2].eval()?;
-            let accum = op.apply(exp1, exp2);
-            self.expr
-                .iter()
-                .skip(3)
-                .map(Expression::eval)
-                .fold(accum, |a, r| a.and_then(|a| r.and_then(|e| op.apply(a, e))))
+    pub fn eval(self) -> LResult {
+        if self.expr.len() > 2 {
+            let mut expr = self.expr;
+            let mut d = expr.drain(..);
+            if let Expression::Op(op) = d.next().unwrap() {
+                let exp1 = d.next().unwrap().eval()?;
+                let exp2 = d.next().unwrap().eval()?;
+                let accum = op.apply(exp1, exp2);
+                d.map(Expression::eval)
+                    .fold(accum, |a, r| a.and_then(|a| r.and_then(|e| op.apply(a, e))))
+            } else {
+                Err(LError::NoOperator)
+            }
         } else {
             Err(LError::NoOperator)
         }
@@ -84,10 +87,11 @@ impl Operator {
 }
 
 impl Expression {
-    fn eval(&self) -> LResult {
+    fn eval(self) -> LResult {
         match self {
-            Expression::Number(n) => Ok(Expression::Number(*n)),
+            n @ Expression::Number(_) => Ok(n),
             Expression::S(sexpr) => sexpr.eval(),
+            q @ Expression::Q(_) => Ok(q),
             _ => Err(LError::NoEval),
         }
     }
@@ -388,6 +392,22 @@ mod tests {
         };
         assert_eq!(Ok(Expression::Number(3)), pr4.eval());
 
+        let pr1 = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Multiply),
+                Expression::Number(10),
+                Expression::Number(10),
+            ],
+        };
+
+        let pr2 = SExpr {
+            expr: vec![
+                Expression::Op(Operator::Add),
+                Expression::Number(1),
+                Expression::Number(1),
+                Expression::Number(1),
+            ],
+        };
         let pr = SExpr {
             expr: vec![
                 Expression::Op(Operator::Subtract),
