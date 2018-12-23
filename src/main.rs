@@ -21,7 +21,7 @@ fn main() {
         println!(
             "{}",
             match parser::parse_main(nom::types::CompleteStr(&input)) {
-                Ok((_, pr)) => format!("{}", pr.eval()),
+                Ok((_, pr)) => format!("{:?}", pr.eval()),
                 Err(e) => format!("{:?}", e),
             }
         )

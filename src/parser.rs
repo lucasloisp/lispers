@@ -25,55 +25,70 @@ enum Operator {
 }
 
 #[derive(Debug, PartialEq)]
-enum Expression {
+pub enum Expression {
     Number(i32),
     Op(Operator),
     S(SExpr),
     Q(QExpr),
 }
 
+#[derive(Debug, PartialEq)]
+pub enum LError {
+    TypeError,
+    NoOperator,
+    NoEval,
+}
+
+type LResult = Result<Expression, LError>;
+
 impl SExpr {
-    pub fn eval(&self) -> i32 {
+    pub fn eval(&self) -> LResult {
         if let Expression::Op(ref op) = self.expr[0] {
-            self.expr.iter().skip(3).map(Expression::eval).fold(
-                op.apply(self.expr[1].eval(), self.expr[2].eval()),
-                |a, e| op.apply(a, e),
-            )
+            let exp1 = self.expr[1].eval()?;
+            let exp2 = self.expr[2].eval()?;
+            let accum = op.apply(exp1, exp2);
+            self.expr
+                .iter()
+                .skip(3)
+                .map(Expression::eval)
+                .fold(accum, |a, r| a.and_then(|a| r.and_then(|e| op.apply(a, e))))
         } else {
-            println!("Damn");
-            println!("{:?}", self);
-            0
+            Err(LError::NoOperator)
         }
     }
 }
 
 impl Operator {
-    fn apply(&self, a: i32, b: i32) -> i32 {
-        match self {
-            Operator::Add => a + b,
-            Operator::Subtract => a - b,
-            Operator::Multiply => a * b,
-            Operator::Divide => a / b,
-            Operator::Modulus => a % b,
-            Operator::Pow => {
-                if b >= 0 {
-                    a.pow(b as u32)
-                } else {
-                    0
+    fn apply(&self, a: Expression, b: Expression) -> LResult {
+        if let (Expression::Number(a), Expression::Number(b)) = (a, b) {
+            Ok(Expression::Number(match self {
+                Operator::Add => a + b,
+                Operator::Subtract => a - b,
+                Operator::Multiply => a * b,
+                Operator::Divide => a / b,
+                Operator::Modulus => a % b,
+                Operator::Pow => {
+                    if b >= 0 {
+                        a.pow(b as u32)
+                    } else {
+                        0
+                    }
                 }
-            }
-            Operator::Max => std::cmp::max(a, b),
-            Operator::Min => std::cmp::min(a, b),
+                Operator::Max => std::cmp::max(a, b),
+                Operator::Min => std::cmp::min(a, b),
+            }))
+        } else {
+            Err(LError::TypeError)
         }
     }
 }
 
 impl Expression {
-    fn eval(&self) -> i32 {
+    fn eval(&self) -> LResult {
         match self {
-            Expression::Number(n) => *n,
+            Expression::Number(n) => Ok(Expression::Number(*n)),
             Expression::S(sexpr) => sexpr.eval(),
-            _ => 0,
+            _ => Err(LError::NoEval),
         }
     }
 }
@@ -270,7 +285,7 @@ mod tests {
     #[test]
     fn min_max_evaluates_correclty() {
         assert_eq!(
-            1,
+            Ok(Expression::Number(1)),
             SExpr {
                 expr: vec![
                     Expression::Op(Operator::Min),
@@ -282,7 +297,7 @@ mod tests {
             .eval()
         );
         assert_eq!(
-            5,
+            Ok(Expression::Number(5)),
             SExpr {
                 expr: vec![
                     Expression::Op(Operator::Max),
@@ -298,7 +313,7 @@ mod tests {
     #[test]
     fn modulus_expression_evaluates_correctly() {
         assert_eq!(
-            4,
+            Ok(Expression::Number(4)),
             SExpr {
                 expr: vec![
                     Expression::Op(Operator::Modulus),
@@ -313,7 +328,7 @@ mod tests {
     #[test]
     fn power_expression_evaluates_correctly() {
         assert_eq!(
-            16,
+            Ok(Expression::Number(16)),
             SExpr {
                 expr: vec![
                     Expression::Op(Operator::Pow),
@@ -334,7 +349,7 @@ mod tests {
                 Expression::Number(6),
             ],
         };
-        assert_eq!(11, pr.eval());
+        assert_eq!(Ok(Expression::Number(11)), pr.eval());
 
         let pr1 = SExpr {
             expr: vec![
@@ -343,7 +358,7 @@ mod tests {
                 Expression::Number(10),
             ],
         };
-        assert_eq!(100, pr1.eval());
+        assert_eq!(Ok(Expression::Number(100)), pr1.eval());
 
         let pr2 = SExpr {
             expr: vec![
@@ -353,7 +368,7 @@ mod tests {
                 Expression::Number(1),
             ],
         };
-        assert_eq!(3, pr2.eval());
+        assert_eq!(Ok(Expression::Number(3)), pr2.eval());
 
         let pr3 = SExpr {
             expr: vec![
@@ -362,7 +377,7 @@ mod tests {
                 Expression::Number(101),
             ],
         };
-        assert_eq!(-51, pr3.eval());
+        assert_eq!(Ok(Expression::Number(-51)), pr3.eval());
 
         let pr4 = SExpr {
             expr: vec![
@@ -371,7 +386,7 @@ mod tests {
                 Expression::Number(50),
             ],
         };
-        assert_eq!(3, pr4.eval());
+        assert_eq!(Ok(Expression::Number(3)), pr4.eval());
 
         let pr = SExpr {
             expr: vec![
@@ -380,7 +395,7 @@ mod tests {
                 Expression::S(pr2),
             ],
         };
-        assert_eq!(97, pr.eval());
+        assert_eq!(Ok(Expression::Number(97)), pr.eval());
     }
 
 }
