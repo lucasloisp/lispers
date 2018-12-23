@@ -13,7 +13,7 @@ pub struct QExpr {
 }
 
 #[derive(Debug, PartialEq)]
-enum Operator {
+pub enum Operator {
     Add,
     Subtract,
     Multiply,
