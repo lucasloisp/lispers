@@ -398,4 +398,33 @@ mod tests {
         assert_eq!(Ok(Expression::Number(97)), pr.eval());
     }
 
+    #[test]
+    fn gives_type_error_on_arithmetic_ops() {
+        let ops = vec![
+            Operator::Add,
+            Operator::Divide,
+            Operator::Max,
+            Operator::Min,
+            Operator::Modulus,
+            Operator::Multiply,
+            Operator::Pow,
+            Operator::Subtract,
+        ];
+        for op in ops {
+            assert_eq!(
+                Err(LError::TypeError),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(op),
+                        Expression::Q(QExpr {
+                            expr: vec![Expression::Number(1)],
+                        }),
+                        Expression::Number(4),
+                    ],
+                }
+                .eval()
+            );
+        }
+    }
+
 }
