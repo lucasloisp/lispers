@@ -503,4 +503,24 @@ mod tests {
         }
     }
 
+    #[test]
+    fn list_function_builds_q_expression() {
+        assert_eq!(
+            Ok(Expression::Q(QExpr { expr: vec![] })),
+            SExpr {
+                expr: vec![Expression::Op(Operator::List)]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Q(QExpr {
+                expr: vec![Expression::Number(1)]
+            })),
+            SExpr {
+                expr: vec![Expression::Op(Operator::List), Expression::Number(1)]
+            }
+            .eval()
+        );
+    }
+
 }
