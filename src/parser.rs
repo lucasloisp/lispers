@@ -22,6 +22,11 @@ pub enum Operator {
     Pow,
     Min,
     Max,
+    List,
+    Head,
+    Tail,
+    Eval,
+    Join,
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,6 +84,11 @@ impl Operator {
                 }
                 Operator::Max => std::cmp::max(a, b),
                 Operator::Min => std::cmp::min(a, b),
+                Operator::List => a + b,
+                Operator::Head => a + b,
+                Operator::Tail => a + b,
+                Operator::Eval => a + b,
+                Operator::Join => a + b,
             }))
         } else {
             Err(LError::TypeError)
@@ -107,6 +117,11 @@ fn sym_to_operator(sym: &str) -> Option<Operator> {
         "^" | "pow" => Some(Operator::Pow),
         "max" => Some(Operator::Max),
         "min" => Some(Operator::Min),
+        "list" => Some(Operator::List),
+        "eval" => Some(Operator::Eval),
+        "head" => Some(Operator::Head),
+        "tail" => Some(Operator::Tail),
+        "join" => Some(Operator::Join),
         _ => None,
     }
 }
@@ -190,6 +205,30 @@ mod tests {
     }
 
     #[test]
+    fn builtin_function_names_are_parsed_correctly() {
+        assert_eq!(
+            Ok((Input(""), Operator::List)),
+            parse_operator(Input("list"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Head)),
+            parse_operator(Input("head"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Tail)),
+            parse_operator(Input("tail"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Eval)),
+            parse_operator(Input("eval"))
+        );
+        assert_eq!(
+            Ok((Input(""), Operator::Join)),
+            parse_operator(Input("join"))
+        );
+    }
+
+    #[test]
     fn parsed_number_is_correct() {
         assert_eq!(
             Ok((Input(""), Expression::Number(45))),
@@ -251,6 +290,23 @@ mod tests {
         assert_eq!(
             Ok((Input(""), Expression::S(SExpr { expr }))),
             parse_expression(Input("(- 2 -4)"))
+        );
+    }
+
+    #[test]
+    fn builtin_functions_are_parsed_adequately() {
+        assert_eq!(
+            Ok((
+                Input(""),
+                Expression::S(SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::List),
+                        Expression::Number(1),
+                        Expression::Number(2)
+                    ]
+                })
+            )),
+            parse_expression(Input("(list 1 2)"))
         );
     }
 
