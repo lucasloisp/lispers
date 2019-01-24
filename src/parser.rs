@@ -48,17 +48,28 @@ type LResult = Result<Expression, LError>;
 
 impl SExpr {
     pub fn eval(self) -> LResult {
-        if self.expr.len() > 2 {
-            let mut expr = self.expr;
-            let mut d = expr.drain(..);
-            if let Expression::Op(op) = d.next().unwrap() {
-                let exp1 = d.next().unwrap().eval()?;
-                let exp2 = d.next().unwrap().eval()?;
-                let accum = op.apply(exp1, exp2);
-                d.map(Expression::eval)
-                    .fold(accum, |a, r| a.and_then(|a| r.and_then(|e| op.apply(a, e))))
-            } else {
-                Err(LError::NoOperator)
+        if self.expr.is_empty() {
+            return Err(LError::NoOperator);
+        }
+
+        let mut expr = self.expr;
+
+        let n = expr.len();
+        let mut d = expr.drain(..);
+        if let Expression::Op(op) = d.next().unwrap() {
+            match op {
+                Operator::List => Ok(Expression::Q(QExpr { expr: d.collect() })),
+                op => {
+                    if n > 2 {
+                        let exp1 = d.next().unwrap().eval()?;
+                        let exp2 = d.next().unwrap().eval()?;
+                        let accum = op.apply(exp1, exp2);
+                        d.map(Expression::eval)
+                            .fold(accum, |a, r| a.and_then(|a| r.and_then(|e| op.apply(a, e))))
+                    } else {
+                        Err(LError::NoOperator)
+                    }
+                }
             }
         } else {
             Err(LError::NoOperator)
