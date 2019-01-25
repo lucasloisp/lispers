@@ -42,6 +42,7 @@ pub enum LError {
     TypeError,
     NoOperator,
     NoEval,
+    EmptyList,
 }
 
 type LResult = Result<Expression, LError>;
@@ -59,6 +60,21 @@ impl SExpr {
         if let Expression::Op(op) = d.next().unwrap() {
             match op {
                 Operator::List => Ok(Expression::Q(QExpr { expr: d.collect() })),
+                Operator::Head => match d.next() {
+                    Some(Expression::Q(QExpr { mut expr })) => match expr.drain(..).next() {
+                        Some(e) => Ok(Expression::Q(QExpr { expr: vec![e] })),
+                        None => Err(LError::EmptyList),
+                    },
+                    _ => Err(LError::TypeError),
+                },
+                Operator::Tail => match d.next() {
+                    Some(Expression::Q(QExpr { mut expr })) => {
+                        let mut d = expr.drain(..);
+                        d.next();
+                        Ok(Expression::Q(QExpr { expr: d.collect() }))
+                    }
+                    _ => Err(LError::TypeError),
+                },
                 op => {
                     if n > 2 {
                         let exp1 = d.next().unwrap().eval()?;
@@ -534,4 +550,70 @@ mod tests {
         );
     }
 
+    #[test]
+    fn head_function_gets_first_of_qexpr() {
+        assert_eq!(
+            Ok(Expression::Q(QExpr {
+                expr: vec![Expression::Number(1)]
+            })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Head),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1), Expression::Number(4)]
+                    })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn tail_function_gets_tail_of_qexpr() {
+        assert_eq!(
+            Ok(Expression::Q(QExpr { expr: vec![] })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Tail),
+                    Expression::Q(QExpr { expr: Vec::new() })
+                ]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Q(QExpr { expr: vec![] })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Tail),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1),]
+                    })
+                ]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Q(QExpr {
+                expr: vec![
+                    Expression::Number(2),
+                    Expression::Number(3),
+                    Expression::Number(4)
+                ]
+            })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Tail),
+                    Expression::Q(QExpr {
+                        expr: vec![
+                            Expression::Number(1),
+                            Expression::Number(2),
+                            Expression::Number(3),
+                            Expression::Number(4),
+                        ]
+                    })
+                ]
+            }
+            .eval()
+        );
+    }
 }
