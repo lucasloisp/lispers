@@ -79,6 +79,17 @@ impl SExpr {
                     }
                     _ => Err(LError::TypeError),
                 },
+                Operator::Join => {
+                    let expr: Vec<Expression> = d
+                        .filter_map(|e| match e {
+                            Expression::Q(q) => Some(q),
+                            _ => None,
+                        })
+                        .map(|QExpr { expr }| expr)
+                        .flatten()
+                        .collect();
+                    Ok(Expression::Q(QExpr { expr }))
+                }
                 op => {
                     if n > 2 {
                         let exp1 = d.next().unwrap().eval()?;
@@ -635,6 +646,53 @@ mod tests {
                             Expression::Number(1),
                             Expression::Number(1),
                         ]
+                    })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn join_function_concats_qexprs() {
+        assert_eq!(
+            Ok(Expression::Q(QExpr { expr: vec![] })),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Join),]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Q(QExpr {
+                expr: vec![Expression::Number(1), Expression::Number(3)]
+            })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Join),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1), Expression::Number(3)]
+                    })
+                ]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Q(QExpr {
+                expr: vec![
+                    Expression::Number(1),
+                    Expression::Number(3),
+                    Expression::Number(2),
+                    Expression::Number(4)
+                ]
+            })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Join),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1), Expression::Number(3)]
+                    }),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(2), Expression::Number(4)]
                     })
                 ]
             }
