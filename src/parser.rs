@@ -67,6 +67,10 @@ impl SExpr {
                     },
                     _ => Err(LError::TypeError),
                 },
+                Operator::Eval => match d.next() {
+                    Some(Expression::Q(QExpr { expr })) => SExpr { expr }.eval(),
+                    _ => Err(LError::TypeError),
+                },
                 Operator::Tail => match d.next() {
                     Some(Expression::Q(QExpr { mut expr })) => {
                         let mut d = expr.drain(..);
@@ -609,6 +613,27 @@ mod tests {
                             Expression::Number(2),
                             Expression::Number(3),
                             Expression::Number(4),
+                        ]
+                    })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn eval_turns_qexpr_into_sexpr_and_evals() {
+        assert_eq!(
+            Ok(Expression::Number(3)),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Eval),
+                    Expression::Q(QExpr {
+                        expr: vec![
+                            Expression::Op(Operator::Add),
+                            Expression::Number(1),
+                            Expression::Number(1),
+                            Expression::Number(1),
                         ]
                     })
                 ]
