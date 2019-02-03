@@ -563,6 +563,26 @@ mod tests {
             }
             .eval()
         );
+        assert_eq!(
+            Ok(Expression::Q(QExpr {
+                expr: vec![
+                    Expression::Number(1),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(2)]
+                    })
+                ]
+            })),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::List),
+                    Expression::Number(1),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(2)]
+                    })
+                ]
+            }
+            .eval()
+        );
     }
 
     #[test]
