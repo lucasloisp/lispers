@@ -43,6 +43,8 @@ pub enum LError {
     NoOperator,
     NoEval,
     EmptyList,
+    MissingArgs,
+    TooManyArgs,
 }
 
 type LResult = Result<Expression, LError>;
@@ -597,6 +599,46 @@ mod tests {
                     Expression::Q(QExpr {
                         expr: vec![Expression::Number(1), Expression::Number(4)]
                     })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn head_function_complains_arg_count() {
+        assert_eq!(
+            Err(LError::MissingArgs),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Head),]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Err(LError::TooManyArgs),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Head),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1)]
+                    }),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1)]
+                    })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn head_function_throws_error_on_empty() {
+        assert_eq!(
+            Err(LError::EmptyList),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Head),
+                    Expression::Q(QExpr { expr: vec![] })
                 ]
             }
             .eval()
