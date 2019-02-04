@@ -64,9 +64,15 @@ impl SExpr {
                 Operator::List => Ok(Expression::Q(QExpr { expr: d.collect() })),
                 Operator::Head => match d.next() {
                     Some(Expression::Q(QExpr { mut expr })) => match expr.drain(..).next() {
-                        Some(e) => Ok(Expression::Q(QExpr { expr: vec![e] })),
+                        Some(e) => {
+                            if d.next().is_some() {
+                                return Err(LError::TooManyArgs);
+                            }
+                            Ok(Expression::Q(QExpr { expr: vec![e] }))
+                        }
                         None => Err(LError::EmptyList),
                     },
+                    None => Err(LError::MissingArgs),
                     _ => Err(LError::TypeError),
                 },
                 Operator::Eval => match d.next() {
