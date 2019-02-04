@@ -81,10 +81,17 @@ impl SExpr {
                 },
                 Operator::Tail => match d.next() {
                     Some(Expression::Q(QExpr { mut expr })) => {
+                        if d.next().is_some() {
+                            return Err(LError::TooManyArgs);
+                        }
+                        if expr.is_empty() {
+                            return Err(LError::EmptyList);
+                        }
                         let mut d = expr.drain(..);
                         d.next();
                         Ok(Expression::Q(QExpr { expr: d.collect() }))
                     }
+                    None => Err(LError::MissingArgs),
                     _ => Err(LError::TypeError),
                 },
                 Operator::Join => {
@@ -658,16 +665,6 @@ mod tests {
             SExpr {
                 expr: vec![
                     Expression::Op(Operator::Tail),
-                    Expression::Q(QExpr { expr: Vec::new() })
-                ]
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Q(QExpr { expr: vec![] })),
-            SExpr {
-                expr: vec![
-                    Expression::Op(Operator::Tail),
                     Expression::Q(QExpr {
                         expr: vec![Expression::Number(1),]
                     })
@@ -694,6 +691,46 @@ mod tests {
                             Expression::Number(4),
                         ]
                     })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn tail_function_complains_arg_count() {
+        assert_eq!(
+            Err(LError::MissingArgs),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Tail),]
+            }
+            .eval()
+        );
+        assert_eq!(
+            Err(LError::TooManyArgs),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Tail),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1)]
+                    }),
+                    Expression::Q(QExpr {
+                        expr: vec![Expression::Number(1)]
+                    })
+                ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn tail_function_throws_error_on_empty() {
+        assert_eq!(
+            Err(LError::EmptyList),
+            SExpr {
+                expr: vec![
+                    Expression::Op(Operator::Tail),
+                    Expression::Q(QExpr { expr: vec![] })
                 ]
             }
             .eval()
