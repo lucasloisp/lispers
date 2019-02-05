@@ -59,9 +59,10 @@ impl SExpr {
 
         let mut d = expr.drain(..);
         if let Expression::Op(op) = d.next().unwrap() {
+            use Operator::*;
             match op {
-                Operator::List => Ok(Expression::Q(QExpr { expr: d.collect() })),
-                Operator::Head => match d.next() {
+                List => Ok(Expression::Q(QExpr { expr: d.collect() })),
+                Head => match d.next() {
                     Some(Expression::Q(QExpr { mut expr })) => match expr.drain(..).next() {
                         Some(e) => {
                             if d.next().is_some() {
@@ -74,11 +75,11 @@ impl SExpr {
                     None => Err(LError::MissingArgs),
                     _ => Err(LError::TypeError),
                 },
-                Operator::Eval => match d.next() {
+                Eval => match d.next() {
                     Some(Expression::Q(QExpr { expr })) => SExpr { expr }.eval(),
                     _ => Err(LError::TypeError),
                 },
-                Operator::Tail => match d.next() {
+                Tail => match d.next() {
                     Some(Expression::Q(QExpr { mut expr })) => {
                         if d.next().is_some() {
                             return Err(LError::TooManyArgs);
@@ -93,7 +94,7 @@ impl SExpr {
                     None => Err(LError::MissingArgs),
                     _ => Err(LError::TypeError),
                 },
-                Operator::Join => {
+                Join => {
                     let expr: Vec<Expression> = d
                         .filter_map(|e| match e {
                             Expression::Q(q) => Some(q),
@@ -104,14 +105,7 @@ impl SExpr {
                         .collect();
                     Ok(Expression::Q(QExpr { expr }))
                 }
-                Operator::Add
-                | Operator::Multiply
-                | Operator::Divide
-                | Operator::Subtract
-                | Operator::Min
-                | Operator::Max
-                | Operator::Pow
-                | Operator::Modulus => {
+                Add | Multiply | Divide | Subtract | Min | Max | Pow | Modulus => {
                     let fst = d.next().ok_or(LError::MissingArgs)?.eval();
                     d.map(Expression::eval)
                         .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op.apply(a, e))))
