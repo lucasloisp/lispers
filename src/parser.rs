@@ -57,7 +57,6 @@ impl SExpr {
 
         let mut expr = self.expr;
 
-        let n = expr.len();
         let mut d = expr.drain(..);
         if let Expression::Op(op) = d.next().unwrap() {
             match op {
