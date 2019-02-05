@@ -105,16 +105,17 @@ impl SExpr {
                         .collect();
                     Ok(Expression::Q(QExpr { expr }))
                 }
-                op => {
-                    if n > 2 {
-                        let exp1 = d.next().unwrap().eval()?;
-                        let exp2 = d.next().unwrap().eval()?;
-                        let accum = op.apply(exp1, exp2);
-                        d.map(Expression::eval)
-                            .fold(accum, |a, r| a.and_then(|a| r.and_then(|e| op.apply(a, e))))
-                    } else {
-                        Err(LError::NoOperator)
-                    }
+                Operator::Add
+                | Operator::Multiply
+                | Operator::Divide
+                | Operator::Subtract
+                | Operator::Min
+                | Operator::Max
+                | Operator::Pow
+                | Operator::Modulus => {
+                    let fst = d.next().ok_or(LError::MissingArgs)?.eval();
+                    d.map(Expression::eval)
+                        .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op.apply(a, e))))
                 }
             }
         } else {
@@ -800,6 +801,66 @@ mod tests {
                         expr: vec![Expression::Number(2), Expression::Number(4)]
                     })
                 ]
+            }
+            .eval()
+        );
+    }
+
+    #[test]
+    fn arithmetic_on_single_arg() {
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Add), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Subtract), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Multiply), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Divide), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Min), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Max), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Pow), Expression::Number(5),],
+            }
+            .eval()
+        );
+        assert_eq!(
+            Ok(Expression::Number(5)),
+            SExpr {
+                expr: vec![Expression::Op(Operator::Modulus), Expression::Number(5),],
             }
             .eval()
         );
