@@ -121,7 +121,14 @@ impl Operator {
             Add | Multiply | Divide | Subtract | Min | Max | Pow | Modulus => {
                 let fst = d.next().ok_or(LError::MissingArgs)?.eval();
                 d.map(Expression::eval)
-                    .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| self.apply(a, e))))
+                    .map(|e| match e {
+                        Ok(Expression::Number(a)) => Ok(a),
+                        Ok(_) => Err(LError::TypeError),
+                        Err(e) => Err(e),
+                    })
+                    .fold(fst, |a, e| {
+                        a.and_then(|a| e.and_then(|e| self.apply(a, Expression::Number(e))))
+                    })
             }
         }
     }
