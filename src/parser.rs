@@ -59,58 +59,7 @@ impl SExpr {
 
         let mut d = expr.drain(..);
         if let Expression::Op(op) = d.next().unwrap() {
-            use Operator::*;
-            match op {
-                List => Ok(Expression::Q(QExpr { expr: d.collect() })),
-                Head => match d.next() {
-                    Some(Expression::Q(QExpr { mut expr })) => match expr.drain(..).next() {
-                        Some(e) => {
-                            if d.next().is_some() {
-                                return Err(LError::TooManyArgs);
-                            }
-                            Ok(Expression::Q(QExpr { expr: vec![e] }))
-                        }
-                        None => Err(LError::EmptyList),
-                    },
-                    None => Err(LError::MissingArgs),
-                    _ => Err(LError::TypeError),
-                },
-                Eval => match d.next() {
-                    Some(Expression::Q(QExpr { expr })) => SExpr { expr }.eval(),
-                    _ => Err(LError::TypeError),
-                },
-                Tail => match d.next() {
-                    Some(Expression::Q(QExpr { mut expr })) => {
-                        if d.next().is_some() {
-                            return Err(LError::TooManyArgs);
-                        }
-                        if expr.is_empty() {
-                            return Err(LError::EmptyList);
-                        }
-                        let mut d = expr.drain(..);
-                        d.next();
-                        Ok(Expression::Q(QExpr { expr: d.collect() }))
-                    }
-                    None => Err(LError::MissingArgs),
-                    _ => Err(LError::TypeError),
-                },
-                Join => {
-                    let expr: Vec<Expression> = d
-                        .filter_map(|e| match e {
-                            Expression::Q(q) => Some(q),
-                            _ => None,
-                        })
-                        .map(|QExpr { expr }| expr)
-                        .flatten()
-                        .collect();
-                    Ok(Expression::Q(QExpr { expr }))
-                }
-                Add | Multiply | Divide | Subtract | Min | Max | Pow | Modulus => {
-                    let fst = d.next().ok_or(LError::MissingArgs)?.eval();
-                    d.map(Expression::eval)
-                        .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op.apply(a, e))))
-                }
-            }
+            op.call(d)
         } else {
             Err(LError::NoOperator)
         }
@@ -118,6 +67,64 @@ impl SExpr {
 }
 
 impl Operator {
+    fn call<I>(&self, args: I) -> LResult
+    where
+        I: IntoIterator<Item = Expression>,
+    {
+        use Operator::*;
+        let mut d = args.into_iter();
+        match self {
+            List => Ok(Expression::Q(QExpr { expr: d.collect() })),
+            Head => match d.next() {
+                Some(Expression::Q(QExpr { mut expr })) => match expr.drain(..).next() {
+                    Some(e) => {
+                        if d.next().is_some() {
+                            return Err(LError::TooManyArgs);
+                        }
+                        Ok(Expression::Q(QExpr { expr: vec![e] }))
+                    }
+                    None => Err(LError::EmptyList),
+                },
+                None => Err(LError::MissingArgs),
+                _ => Err(LError::TypeError),
+            },
+            Eval => match d.next() {
+                Some(Expression::Q(QExpr { expr })) => SExpr { expr }.eval(),
+                _ => Err(LError::TypeError),
+            },
+            Tail => match d.next() {
+                Some(Expression::Q(QExpr { mut expr })) => {
+                    if d.next().is_some() {
+                        return Err(LError::TooManyArgs);
+                    }
+                    if expr.is_empty() {
+                        return Err(LError::EmptyList);
+                    }
+                    let mut d = expr.drain(..);
+                    d.next();
+                    Ok(Expression::Q(QExpr { expr: d.collect() }))
+                }
+                None => Err(LError::MissingArgs),
+                _ => Err(LError::TypeError),
+            },
+            Join => {
+                let expr: Vec<Expression> = d
+                    .filter_map(|e| match e {
+                        Expression::Q(q) => Some(q),
+                        _ => None,
+                    })
+                    .map(|QExpr { expr }| expr)
+                    .flatten()
+                    .collect();
+                Ok(Expression::Q(QExpr { expr }))
+            }
+            Add | Multiply | Divide | Subtract | Min | Max | Pow | Modulus => {
+                let fst = d.next().ok_or(LError::MissingArgs)?.eval();
+                d.map(Expression::eval)
+                    .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| self.apply(a, e))))
+            }
+        }
+    }
     fn apply(&self, a: Expression, b: Expression) -> LResult {
         if let (Expression::Number(a), Expression::Number(b)) = (a, b) {
             Ok(Expression::Number(match self {
