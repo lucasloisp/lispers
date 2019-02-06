@@ -801,61 +801,24 @@ mod tests {
 
     #[test]
     fn arithmetic_on_single_arg() {
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Add), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Subtract), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Multiply), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Divide), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Min), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Max), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Pow), Expression::Number(5),],
-            }
-            .eval()
-        );
-        assert_eq!(
-            Ok(Expression::Number(5)),
-            SExpr {
-                expr: vec![Expression::Op(Operator::Modulus), Expression::Number(5),],
-            }
-            .eval()
-        );
+        let ops = vec![
+            Operator::Add,
+            Operator::Subtract,
+            Operator::Multiply,
+            Operator::Divide,
+            Operator::Max,
+            Operator::Min,
+            Operator::Modulus,
+            Operator::Pow,
+        ];
+        for op in ops {
+            assert_eq!(
+                Ok(Expression::Number(5)),
+                SExpr {
+                    expr: vec![Expression::Op(op), Expression::Number(5),],
+                }
+                .eval()
+            );
+        }
     }
 }
