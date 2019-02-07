@@ -1,5 +1,6 @@
 use nom::types::CompleteStr as Input;
 use nom::{digit, multispace};
+use std::fmt;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -48,6 +49,55 @@ pub enum LError {
 }
 
 type Result<T> = std::result::Result<T, LError>;
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Expression::*;
+        match self {
+            Number(n) => n.fmt(f),
+            Op(op) => op.fmt(f),
+            S(SExpr { expr }) => write!(
+                f,
+                "({})",
+                expr.iter().map(|e| e.to_string()).collect::<String>()
+            ),
+            Q(QExpr { expr }) => write!(
+                f,
+                "{{{}}}",
+                expr.iter().map(|e| e.to_string()).collect::<String>()
+            ),
+        }
+    }
+}
+
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Operator::*;
+        match self {
+            Add => write!(f, "+"),
+            Subtract => write!(f, "-"),
+            Multiply => write!(f, "*"),
+            Divide => write!(f, "/"),
+            Modulus => write!(f, "%"),
+            Pow => write!(f, "^"),
+            Min => write!(f, "min"),
+            Max => write!(f, "max"),
+            List => write!(f, "list"),
+            Head => write!(f, "head"),
+            Tail => write!(f, "tail"),
+            Eval => write!(f, "eval"),
+            Join => write!(f, "join"),
+        }
+    }
+}
+
+impl fmt::Display for LError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            _ => write!(f, "error!"),
+        }
+    }
+}
 
 macro_rules! as_result {
     ($e: ident, $wrap: path, $err: expr) => {

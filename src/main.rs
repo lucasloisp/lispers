@@ -18,12 +18,12 @@ fn main() {
 
         io::stdin().read_line(&mut input);
 
-        println!(
-            "{}",
-            match parser::parse_main(nom::types::CompleteStr(&input)) {
-                Ok((_, pr)) => format!("{:?}", pr.eval()),
-                Err(e) => format!("{:?}", e),
+        match parser::parse_main(nom::types::CompleteStr(&input)) {
+            Ok((_, res)) => match res.eval() {
+                Ok(res) => println!("{}", res),
+                Err(e) => println!("{}", e)
             }
-        )
+            Err(e) => println!("{}", e),
+        }
     }
 }
