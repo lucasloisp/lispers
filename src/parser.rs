@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use nom::types::CompleteStr as Input;
 use nom::{digit, multispace};
 use std::fmt;
@@ -56,16 +57,8 @@ impl fmt::Display for Expression {
         match self {
             Number(n) => n.fmt(f),
             Op(op) => op.fmt(f),
-            S(SExpr { expr }) => write!(
-                f,
-                "({})",
-                expr.iter().map(|e| e.to_string()).collect::<String>()
-            ),
-            Q(QExpr { expr }) => write!(
-                f,
-                "{{{}}}",
-                expr.iter().map(|e| e.to_string()).collect::<String>()
-            ),
+            S(SExpr { expr }) => write!(f, "({})", expr.iter().format(" ")),
+            Q(QExpr { expr }) => write!(f, "{{{}}}", expr.iter().format(" ")),
         }
     }
 }
