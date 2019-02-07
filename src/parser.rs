@@ -57,9 +57,9 @@ impl SExpr {
 
         let mut expr = self.expr;
 
-        let mut d = expr.drain(..);
-        if let Expression::Op(op) = d.next().unwrap() {
-            op.call(d)
+        let mut args = expr.drain(..);
+        if let Expression::Op(op) = args.next().unwrap() {
+            op.call(args)
         } else {
             Err(LError::NoOperator)
         }
@@ -72,63 +72,65 @@ impl Operator {
         I: IntoIterator<Item = Expression>,
     {
         use Operator::*;
-        let mut d = args.into_iter();
+        let mut args = args.into_iter();
         match self {
-            List => Ok(Expression::Q(QExpr { expr: d.collect() })),
-            Head => match d.next() {
-                Some(Expression::Q(QExpr { mut expr })) => match expr.drain(..).next() {
+            List => Ok(Expression::Q(QExpr {
+                expr: args.collect(),
+            })),
+            Head => match (args.next(), args.next()) {
+                (Some(Expression::Q(QExpr { mut expr })), None) => match expr.drain(..).next() {
                     Some(e) => {
-                        if d.next().is_some() {
+                        if args.next().is_some() {
                             return Err(LError::TooManyArgs);
                         }
                         Ok(Expression::Q(QExpr { expr: vec![e] }))
                     }
                     None => Err(LError::EmptyList),
                 },
-                None => Err(LError::MissingArgs),
-                _ => Err(LError::TypeError),
+                (Some(_), None) => Err(LError::TypeError),
+                (None, _) => Err(LError::MissingArgs),
+                (Some(_), Some(_)) => Err(LError::TooManyArgs),
             },
-            Eval => match d.next() {
-                Some(Expression::Q(QExpr { expr })) => SExpr { expr }.eval(),
-                _ => Err(LError::TypeError),
+            Eval => match (args.next(), args.next()) {
+                (Some(Expression::Q(QExpr { expr })), None) => SExpr { expr }.eval(),
+                (Some(_), None) => Err(LError::TypeError),
+                (None, _) => Err(LError::MissingArgs),
+                (Some(_), Some(_)) => Err(LError::TooManyArgs),
             },
-            Tail => match d.next() {
-                Some(Expression::Q(QExpr { mut expr })) => {
-                    if d.next().is_some() {
-                        return Err(LError::TooManyArgs);
-                    }
+            Tail => match (args.next(), args.next()) {
+                (Some(Expression::Q(QExpr { mut expr })), None) => {
                     if expr.is_empty() {
                         return Err(LError::EmptyList);
                     }
-                    let mut d = expr.drain(..);
-                    d.next();
-                    Ok(Expression::Q(QExpr { expr: d.collect() }))
+                    Ok(Expression::Q(QExpr {
+                        expr: expr.split_off(1),
+                    }))
                 }
-                None => Err(LError::MissingArgs),
-                _ => Err(LError::TypeError),
+                (Some(_), None) => Err(LError::TypeError),
+                (None, _) => Err(LError::MissingArgs),
+                (Some(_), Some(_)) => Err(LError::TooManyArgs),
             },
-            Join => {
-                let expr: Vec<Expression> = d
+            Join => Ok(Expression::Q(QExpr {
+                expr: args
                     .filter_map(|e| match e {
                         Expression::Q(q) => Some(q),
                         _ => None,
                     })
                     .map(|QExpr { expr }| expr)
                     .flatten()
-                    .collect();
-                Ok(Expression::Q(QExpr { expr }))
-            }
-            Add => Operator::fold_arithmetic(|a, e| Ok(a + e), d),
-            Multiply => Operator::fold_arithmetic(|a, e| Ok(a * e), d),
-            Divide => Operator::fold_arithmetic(|a, e| Ok(a / e), d),
-            Subtract => Operator::fold_arithmetic(|a, e| Ok(a - e), d),
-            Min => Operator::fold_arithmetic(|a, e| Ok(std::cmp::min(a, e)), d),
-            Max => Operator::fold_arithmetic(|a, e| Ok(std::cmp::max(a, e)), d),
+                    .collect(),
+            })),
+            Add => Operator::fold_arithmetic(|a, e| Ok(a + e), args),
+            Multiply => Operator::fold_arithmetic(|a, e| Ok(a * e), args),
+            Divide => Operator::fold_arithmetic(|a, e| Ok(a / e), args),
+            Subtract => Operator::fold_arithmetic(|a, e| Ok(a - e), args),
+            Min => Operator::fold_arithmetic(|a, e| Ok(std::cmp::min(a, e)), args),
+            Max => Operator::fold_arithmetic(|a, e| Ok(std::cmp::max(a, e)), args),
             Pow => {
-                Operator::fold_arithmetic(|a, b| Ok(if b >= 0 { a.pow(b as u32) } else { 0 }), d)
+                Operator::fold_arithmetic(|a, b| Ok(if b >= 0 { a.pow(b as u32) } else { 0 }), args)
             }
 
-            Modulus => Operator::fold_arithmetic(|a, e| Ok(a % e), d),
+            Modulus => Operator::fold_arithmetic(|a, e| Ok(a % e), args),
         }
     }
 
