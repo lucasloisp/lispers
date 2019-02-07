@@ -119,22 +119,39 @@ impl Operator {
                 Ok(Expression::Q(QExpr { expr }))
             }
             Add | Multiply | Divide | Subtract | Min | Max | Pow | Modulus => {
-                let fst = d.next().ok_or(LError::MissingArgs)?.eval();
-                d.map(Expression::eval)
-                    .map(|e| match e {
-                        Ok(Expression::Number(a)) => Ok(a),
-                        Ok(_) => Err(LError::TypeError),
-                        Err(e) => Err(e),
-                    })
-                    .fold(fst, |a, e| {
-                        a.and_then(|a| e.and_then(|e| self.apply(a, Expression::Number(e))))
-                    })
+                Operator::fold_arithmetic(
+                    |a, e| self.apply(Expression::Number(a), Expression::Number(e)),
+                    d,
+                )
             }
         }
     }
-    fn apply(&self, a: Expression, b: Expression) -> LResult {
+
+    fn fold_arithmetic<F, I>(op: F, mut operands: I) -> LResult
+    where
+        F: Fn(i32, i32) -> Result<i32, LError>,
+        I: Iterator<Item = Expression>,
+    {
+        let fst: LResult = operands.next().ok_or(LError::MissingArgs)?.eval();
+        let fst: Result<i32, LError> = fst.and_then(|e| match e {
+            Expression::Number(n) => Ok(n),
+            _ => Err(LError::TypeError),
+        });
+        operands
+            .map(Expression::eval)
+            .map(|e| {
+                e.and_then(|e| match e {
+                    Expression::Number(a) => Ok(a),
+                    _ => Err(LError::TypeError),
+                })
+            })
+            .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op(a, e))))
+            .map(Expression::Number)
+    }
+
+    fn apply(&self, a: Expression, b: Expression) -> Result<i32, LError> {
         if let (Expression::Number(a), Expression::Number(b)) = (a, b) {
-            Ok(Expression::Number(match self {
+            Ok(match self {
                 Operator::Add => a + b,
                 Operator::Subtract => a - b,
                 Operator::Multiply => a * b,
@@ -154,7 +171,7 @@ impl Operator {
                 Operator::Tail => a + b,
                 Operator::Eval => a + b,
                 Operator::Join => a + b,
-            }))
+            })
         } else {
             Err(LError::TypeError)
         }
