@@ -47,10 +47,10 @@ pub enum LError {
     TooManyArgs,
 }
 
-type LResult = Result<Expression, LError>;
+type Result<T> = std::result::Result<T, LError>;
 
 impl SExpr {
-    pub fn eval(self) -> LResult {
+    pub fn eval(self) -> Result<Expression> {
         if self.expr.is_empty() {
             return Err(LError::NoOperator);
         }
@@ -67,7 +67,7 @@ impl SExpr {
 }
 
 impl Operator {
-    fn call<I>(&self, args: I) -> LResult
+    fn call<I>(&self, args: I) -> Result<Expression>
     where
         I: IntoIterator<Item = Expression>,
     {
@@ -132,13 +132,13 @@ impl Operator {
         }
     }
 
-    fn fold_arithmetic<F, I>(op: F, mut operands: I) -> LResult
+    fn fold_arithmetic<F, I>(op: F, mut operands: I) -> Result<Expression>
     where
-        F: Fn(i32, i32) -> Result<i32, LError>,
+        F: Fn(i32, i32) -> Result<i32>,
         I: Iterator<Item = Expression>,
     {
-        let fst: LResult = operands.next().ok_or(LError::MissingArgs)?.eval();
-        let fst: Result<i32, LError> = fst.and_then(|e| match e {
+        let fst: Result<Expression> = operands.next().ok_or(LError::MissingArgs)?.eval();
+        let fst: Result<i32> = fst.and_then(|e| match e {
             Expression::Number(n) => Ok(n),
             _ => Err(LError::TypeError),
         });
@@ -156,7 +156,7 @@ impl Operator {
 }
 
 impl Expression {
-    fn eval(self) -> LResult {
+    fn eval(self) -> Result<Expression> {
         match self {
             n @ Expression::Number(_) => Ok(n),
             Expression::S(sexpr) => sexpr.eval(),
