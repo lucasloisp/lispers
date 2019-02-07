@@ -78,15 +78,14 @@ impl Operator {
                 expr: args.collect(),
             })),
             Head => match (args.next(), args.next()) {
-                (Some(Expression::Q(QExpr { mut expr })), None) => match expr.drain(..).next() {
-                    Some(e) => {
-                        if args.next().is_some() {
-                            return Err(LError::TooManyArgs);
-                        }
-                        Ok(Expression::Q(QExpr { expr: vec![e] }))
+                (Some(Expression::Q(QExpr { mut expr })), None) => {
+                    if expr.is_empty() {
+                        Err(LError::EmptyList)
+                    } else {
+                        expr.split_off(1);
+                        Ok(Expression::Q(QExpr { expr }))
                     }
-                    None => Err(LError::EmptyList),
-                },
+                }
                 (Some(_), None) => Err(LError::TypeError),
                 (None, _) => Err(LError::MissingArgs),
                 (Some(_), Some(_)) => Err(LError::TooManyArgs),
