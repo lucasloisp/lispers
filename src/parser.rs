@@ -49,6 +49,15 @@ pub enum LError {
 
 type Result<T> = std::result::Result<T, LError>;
 
+macro_rules! as_result {
+    ($e: ident, $wrap: path, $err: expr) => {
+        match $e {
+            $wrap(q) => Ok(q),
+            _ => Err($err),
+        }
+    };
+}
+
 impl SExpr {
     pub fn eval(self) -> Result<Expression> {
         if self.expr.is_empty() {
@@ -111,10 +120,7 @@ impl Operator {
             },
             Join => Ok(Expression::Q(QExpr {
                 expr: args
-                    .filter_map(|e| match e {
-                        Expression::Q(q) => Some(q),
-                        _ => None,
-                    })
+                    .filter_map(|e| as_result!(e, Expression::Q, ()).ok())
                     .map(|QExpr { expr }| expr)
                     .flatten()
                     .collect(),
@@ -139,18 +145,11 @@ impl Operator {
         I: Iterator<Item = Expression>,
     {
         let fst: Result<Expression> = operands.next().ok_or(LError::MissingArgs)?.eval();
-        let fst: Result<i32> = fst.and_then(|e| match e {
-            Expression::Number(n) => Ok(n),
-            _ => Err(LError::TypeError),
-        });
+        let fst: Result<i32> =
+            fst.and_then(|e| as_result!(e, Expression::Number, LError::TypeError));
         operands
             .map(Expression::eval)
-            .map(|e| {
-                e.and_then(|e| match e {
-                    Expression::Number(a) => Ok(a),
-                    _ => Err(LError::TypeError),
-                })
-            })
+            .map(|e| e.and_then(|e| as_result!(e, Expression::Number, LError::TypeError)))
             .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op(a, e))))
             .map(Expression::Number)
     }
