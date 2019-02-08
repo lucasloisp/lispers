@@ -92,15 +92,6 @@ impl fmt::Display for LError {
     }
 }
 
-macro_rules! as_result {
-    ($e: ident, $wrap: path, $err: expr) => {
-        match $e {
-            $wrap(q) => Ok(q),
-            _ => Err($err),
-        }
-    };
-}
-
 impl SExpr {
     pub fn eval(self) -> Result<Expression> {
         if self.expr.is_empty() {
@@ -163,7 +154,7 @@ impl Operator {
             },
             Join => Ok(Expression::Q(QExpr {
                 expr: args
-                    .filter_map(|e| as_result!(e, Expression::Q, ()).ok())
+                    .filter_map(|e| e.q_expression())
                     .map(|QExpr { expr }| expr)
                     .flatten()
                     .collect(),
@@ -188,11 +179,10 @@ impl Operator {
         I: Iterator<Item = Expression>,
     {
         let fst: Result<Expression> = operands.next().ok_or(LError::MissingArgs)?.eval();
-        let fst: Result<i32> =
-            fst.and_then(|e| as_result!(e, Expression::Number, LError::TypeError));
+        let fst: Result<i32> = fst.and_then(|e| e.number().ok_or(LError::TypeError));
         operands
             .map(Expression::eval)
-            .map(|e| e.and_then(|e| as_result!(e, Expression::Number, LError::TypeError)))
+            .map(|e| e.and_then(|e| e.number().ok_or(LError::TypeError)))
             .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op(a, e))))
             .map(Expression::Number)
     }
@@ -205,6 +195,20 @@ impl Expression {
             Expression::S(sexpr) => sexpr.eval(),
             q @ Expression::Q(_) => Ok(q),
             _ => Err(LError::NoEval),
+        }
+    }
+
+    fn number(self) -> Option<i32> {
+        match self {
+            Expression::Number(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    fn q_expression(self) -> Option<QExpr> {
+        match self {
+            Expression::Q(q) => Some(q),
+            _ => None,
         }
     }
 }
