@@ -246,14 +246,18 @@ named!(parse_expression<Input, Expression>, alt!(
 
 named!(parse_qexpr<Input, QExpr>, do_parse!(
         char!('{') >>
+        opt!(multispace) >>
         expr: separated_list!(multispace, parse_expression) >>
+        opt!(multispace) >>
         char!('}') >>
         (QExpr { expr })
 ));
 
-named!(parse_sexpr<Input, SExpr>, do_parse!(
+named!(pub parse_sexpr<Input, SExpr>, do_parse!(
         char!('(') >>
+        opt!(multispace) >>
         expr: separated_list!(multispace, parse_expression) >>
+        opt!(multispace) >>
         char!(')') >>
         (SExpr { expr })
 ));
@@ -263,6 +267,49 @@ named!(pub parse_main<Input, SExpr>, terminated!(parse_sexpr, nom::eol));
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parsing_of_extra_spaces() {
+        assert_eq!(
+            Ok((
+                Input(""),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(2),
+                        Expression::Number(3)
+                    ]
+                }
+            )),
+            parse_sexpr(Input("(+ 2 3)"))
+        );
+        assert_eq!(
+            Ok((
+                Input(""),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(2),
+                        Expression::Number(3)
+                    ]
+                }
+            )),
+            parse_sexpr(Input("(+ 2 3 )"))
+        );
+        assert_eq!(
+            Ok((
+                Input(""),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(2),
+                        Expression::Number(3)
+                    ]
+                }
+            )),
+            parse_main(Input("(+ 2 3 )\n"))
+        );
+    }
 
     #[test]
     fn parsed_operator_coincides_with_symbol() {

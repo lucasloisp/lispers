@@ -18,7 +18,8 @@ fn main() {
 
         io::stdin().read_line(&mut input);
 
-        match parser::parse_main(nom::types::CompleteStr(&input)) {
+
+        match parser::parse_sexpr(nom::types::CompleteStr(&input.trim())) {
             Ok((_, res)) => match res.eval() {
                 Ok(res) => println!("{}", res),
                 Err(e) => println!("{}", e),
