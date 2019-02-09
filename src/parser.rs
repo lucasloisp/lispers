@@ -1,5 +1,7 @@
+use itertools::Itertools;
 use nom::types::CompleteStr as Input;
 use nom::{digit, multispace};
+use std::fmt;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
@@ -49,13 +51,45 @@ pub enum LError {
 
 type Result<T> = std::result::Result<T, LError>;
 
-macro_rules! as_result {
-    ($e: ident, $wrap: path, $err: expr) => {
-        match $e {
-            $wrap(q) => Ok(q),
-            _ => Err($err),
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Expression::*;
+        match self {
+            Number(n) => n.fmt(f),
+            Op(op) => op.fmt(f),
+            S(SExpr { expr }) => write!(f, "({})", expr.iter().format(" ")),
+            Q(QExpr { expr }) => write!(f, "{{{}}}", expr.iter().format(" ")),
         }
-    };
+    }
+}
+
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Operator::*;
+        match self {
+            Add => write!(f, "+"),
+            Subtract => write!(f, "-"),
+            Multiply => write!(f, "*"),
+            Divide => write!(f, "/"),
+            Modulus => write!(f, "%"),
+            Pow => write!(f, "^"),
+            Min => write!(f, "min"),
+            Max => write!(f, "max"),
+            List => write!(f, "list"),
+            Head => write!(f, "head"),
+            Tail => write!(f, "tail"),
+            Eval => write!(f, "eval"),
+            Join => write!(f, "join"),
+        }
+    }
+}
+
+impl fmt::Display for LError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            _ => write!(f, "error!"),
+        }
+    }
 }
 
 impl SExpr {
@@ -120,7 +154,7 @@ impl Operator {
             },
             Join => Ok(Expression::Q(QExpr {
                 expr: args
-                    .filter_map(|e| as_result!(e, Expression::Q, ()).ok())
+                    .filter_map(|e| e.q_expression())
                     .map(|QExpr { expr }| expr)
                     .flatten()
                     .collect(),
@@ -145,11 +179,10 @@ impl Operator {
         I: Iterator<Item = Expression>,
     {
         let fst: Result<Expression> = operands.next().ok_or(LError::MissingArgs)?.eval();
-        let fst: Result<i32> =
-            fst.and_then(|e| as_result!(e, Expression::Number, LError::TypeError));
+        let fst: Result<i32> = fst.and_then(|e| e.number().ok_or(LError::TypeError));
         operands
             .map(Expression::eval)
-            .map(|e| e.and_then(|e| as_result!(e, Expression::Number, LError::TypeError)))
+            .map(|e| e.and_then(|e| e.number().ok_or(LError::TypeError)))
             .fold(fst, |a, e| a.and_then(|a| e.and_then(|e| op(a, e))))
             .map(Expression::Number)
     }
@@ -162,6 +195,20 @@ impl Expression {
             Expression::S(sexpr) => sexpr.eval(),
             q @ Expression::Q(_) => Ok(q),
             _ => Err(LError::NoEval),
+        }
+    }
+
+    fn number(self) -> Option<i32> {
+        match self {
+            Expression::Number(n) => Some(n),
+            _ => None,
+        }
+    }
+
+    fn q_expression(self) -> Option<QExpr> {
+        match self {
+            Expression::Q(q) => Some(q),
+            _ => None,
         }
     }
 }
@@ -199,14 +246,18 @@ named!(parse_expression<Input, Expression>, alt!(
 
 named!(parse_qexpr<Input, QExpr>, do_parse!(
         char!('{') >>
+        opt!(multispace) >>
         expr: separated_list!(multispace, parse_expression) >>
+        opt!(multispace) >>
         char!('}') >>
         (QExpr { expr })
 ));
 
-named!(parse_sexpr<Input, SExpr>, do_parse!(
+named!(pub parse_sexpr<Input, SExpr>, do_parse!(
         char!('(') >>
+        opt!(multispace) >>
         expr: separated_list!(multispace, parse_expression) >>
+        opt!(multispace) >>
         char!(')') >>
         (SExpr { expr })
 ));
@@ -216,6 +267,49 @@ named!(pub parse_main<Input, SExpr>, terminated!(parse_sexpr, nom::eol));
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parsing_of_extra_spaces() {
+        assert_eq!(
+            Ok((
+                Input(""),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(2),
+                        Expression::Number(3)
+                    ]
+                }
+            )),
+            parse_sexpr(Input("(+ 2 3)"))
+        );
+        assert_eq!(
+            Ok((
+                Input(""),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(2),
+                        Expression::Number(3)
+                    ]
+                }
+            )),
+            parse_sexpr(Input("(+ 2 3 )"))
+        );
+        assert_eq!(
+            Ok((
+                Input(""),
+                SExpr {
+                    expr: vec![
+                        Expression::Op(Operator::Add),
+                        Expression::Number(2),
+                        Expression::Number(3)
+                    ]
+                }
+            )),
+            parse_main(Input("(+ 2 3 )\n"))
+        );
+    }
 
     #[test]
     fn parsed_operator_coincides_with_symbol() {
