@@ -18,3 +18,13 @@ The tests can be run the usual way, by running
 cargo run
 ```
 
+## Features wishlist
+
+- [x] Integer arithmetic
+- [ ] Local name-binding
+- [ ] Anonymous function definition
+- [ ] Named functions definition
+- [ ] Boolean types
+- [ ] Flow-control
+- [ ] While loops
+- [ ] For loops
